@@ -4,6 +4,7 @@ import { AppError, asyncHandler } from '../utils/AppError.js';
 import { getPreset } from './presetController.js';
 import { cropFlipkart } from '../services/pdf/flipkart/cropFlipkart.js';
 import { cropSnapdeal } from '../services/pdf/snapdeal/cropSnapdeal.js';
+import { cropMeesho } from '../services/pdf/meesho/cropMeesho.js';
 import { removeAmazonPages } from '../services/pdf/amazon/removeAmazonPages.js';
 import { mergePdfs } from '../services/pdf/general/merge.js';
 import { splitPdf } from '../services/pdf/general/split.js';
@@ -50,6 +51,12 @@ export const snapdealCrop = handle('snapdeal', 'crop', async (req) => {
   const p = await getPreset('SNAPDEAL');
   const r = await cropSnapdeal(buf, p, name);
   return { ...r, outName: `${base}-snapdeal-cropped.pdf` };
+});
+export const meeshoCrop = handle('meesho', 'crop', async (req) => {
+  const { buf, name, base } = one(req);
+  const p = await getPreset('MEESHO');
+  const r = await cropMeesho(buf, p, name);
+  return { ...r, outName: `${base}-meesho-cropped.pdf` };
 });
 export const amazonRemove = handle('amazon', 'remove-pages', async (req) => {
   const { buf, name, base } = one(req);

@@ -1,3 +1,4 @@
+import { logActivity } from '../services/activity.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
@@ -25,6 +26,7 @@ export const login = asyncHandler(async (req, res) => {
   const user = email ? await User.findOne({ email }).select('+passwordHash') : null;
   const ok = await bcrypt.compare(password, user?.passwordHash || DUMMY_HASH);
   if (!user || !ok) throw new AppError('Incorrect email or password.', 401);
+  logActivity('auth.login', 'Signed in');
   res.json({ token: sign(user), user: publicUser(user) });
 });
 
@@ -37,5 +39,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!(await bcrypt.compare(currentPassword, user.passwordHash))) throw new AppError('Current password is incorrect.', 400);
   user.passwordHash = await bcrypt.hash(newPassword, 12);
   await user.save();
+  logActivity('auth.password', 'Changed the password');
   res.json({ message: 'Password updated.' });
 });

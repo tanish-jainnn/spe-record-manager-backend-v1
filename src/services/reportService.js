@@ -2,17 +2,19 @@ import DailyBusiness from '../models/DailyBusiness.js';
 import Purchase from '../models/Purchase.js';
 
 const PLATFORMS = ['amazon', 'flipkart', 'meesho', 'snapdeal'];
+const zero = () => ({ amazon: 0, flipkart: 0, meesho: 0, snapdeal: 0 });
 
-export const emptyTotals = () => ({ amazon: 0, flipkart: 0, meesho: 0, snapdeal: 0, totalOrders: 0, returns: 0, rto: 0, days: 0 });
+export const emptyTotals = () => ({ ...zero(), totalOrders: 0, returns: 0, rto: 0, days: 0, returnsBy: zero(), rtoBy: zero() });
 
 export function addRecord(t, r) {
-  t.amazon += r.amazonOrders;
-  t.flipkart += r.flipkartOrders;
-  t.meesho += r.meeshoOrders;
-  t.snapdeal += r.snapdealOrders;
-  t.totalOrders += r.amazonOrders + r.flipkartOrders + r.meeshoOrders + r.snapdealOrders;
-  t.returns += r.returnsReceived;
-  t.rto += r.rtoReceived;
+  PLATFORMS.forEach((p) => {
+    const o = r[`${p}Orders`] ?? 0;
+    t[p] += o; t.totalOrders += o;
+    t.returnsBy[p] += r[`${p}Returns`] ?? 0;
+    t.rtoBy[p] += r[`${p}Rto`] ?? 0;
+  });
+  t.returns += r.returnsReceived ?? 0;
+  t.rto += r.rtoReceived ?? 0;
   t.days += 1;
   return t;
 }
@@ -38,8 +40,9 @@ export function groupRecords(records, group) {
   return [...map.entries()].map(([period, t]) => ({ period, ...t }));
 }
 
-export async function purchaseCounters() {
+export async function purchaseCounters(from, to) {
   const [row] = await Purchase.aggregate([
+    ...(from && to ? [{ $match: { date: { $gte: from, $lte: to } } }] : []),
     {
       $group: {
         _id: null,
@@ -62,10 +65,13 @@ export const supplierSummary = () =>
         receivedBills: { $sum: { $cond: [{ $eq: ['$status', 'RECEIVED'] }, 1, 0] } },
         pendingBills: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] } },
         pendingAmount: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, '$totalAmount', 0] } },
+        totalAmount: { $sum: '$totalAmount' },
+        paidAmount: { $sum: { $ifNull: ['$paidAmount', 0] } },
+        dueAmount: { $sum: { $let: { vars: { d: { $subtract: ['$totalAmount', { $ifNull: ['$paidAmount', 0] }] } }, in: { $cond: [{ $gt: ['$$d', 0] }, '$$d', 0] } } } },
       },
     },
-    { $project: { _id: 0, supplier: '$_id', totalBills: 1, receivedBills: 1, pendingBills: 1, pendingAmount: 1 } },
-    { $sort: { pendingBills: -1, supplier: 1 } },
+    { $project: { _id: 0, supplier: '$_id', totalBills: 1, receivedBills: 1, pendingBills: 1, pendingAmount: 1, totalAmount: 1, paidAmount: 1, dueAmount: 1 } },
+    { $sort: { dueAmount: -1, pendingBills: -1, supplier: 1 } },
   ]);
 
 export { PLATFORMS };

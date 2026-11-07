@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { PDFDocument } from 'pdf-lib';
 import { cropFlipkart } from '../src/services/pdf/flipkart/cropFlipkart.js';
 import { cropSnapdeal } from '../src/services/pdf/snapdeal/cropSnapdeal.js';
+import { cropMeesho } from '../src/services/pdf/meesho/cropMeesho.js';
 import { removeAmazonPages } from '../src/services/pdf/amazon/removeAmazonPages.js';
 import { mergePdfs } from '../src/services/pdf/general/merge.js';
 import { splitPdf } from '../src/services/pdf/general/split.js';
@@ -27,6 +28,10 @@ assert.equal(r.pagesOut, 5);
 r = await cropSnapdeal(src, { x: 0, y: 0, width: 300, height: 300 }, 't.pdf');
 box = (await PDFDocument.load(r.buffer)).getPage(2).getCropBox();
 assert.deepEqual([box.width, box.height], [300, 300]);
+
+r = await cropMeesho(src, { x: 5, y: 5, width: 200, height: 250 }, 't.pdf');
+box = (await PDFDocument.load(r.buffer)).getPage(4).getCropBox();
+assert.deepEqual([box.x, box.y, box.width, box.height], [5, 5, 200, 250]);
 
 assert.equal(await pages((await removeAmazonPages(src, '2,4-5', 't.pdf')).buffer), 2);
 assert.equal(await pages((await removePages(src, [1], 't.pdf')).buffer), 4);

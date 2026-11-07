@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const schema = new mongoose.Schema(
   {
-    marketplace: { type: String, enum: ['FLIPKART', 'SNAPDEAL'], required: true, unique: true },
+    marketplace: { type: String, enum: ['FLIPKART', 'SNAPDEAL', 'MEESHO'], required: true, unique: true },
     presetName: { type: String, default: 'Default', trim: true, maxlength: 80 },
     x: { type: Number, required: true, min: 0 },
     y: { type: Number, required: true, min: 0 },

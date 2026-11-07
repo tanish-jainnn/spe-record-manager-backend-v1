@@ -1,3 +1,4 @@
+import { logActivity } from '../services/activity.js';
 import LabelPreset from '../models/LabelPreset.js';
 import { AppError, asyncHandler } from '../utils/AppError.js';
 import { cleanStr } from '../utils/validate.js';
@@ -6,10 +7,11 @@ import { cleanStr } from '../utils/validate.js';
 export const DEFAULTS = {
   FLIPKART: { presetName: 'Flipkart label', x: 0, y: 420, width: 595, height: 422 },
   SNAPDEAL: { presetName: 'Snapdeal label', x: 0, y: 420, width: 595, height: 422 },
+  MEESHO: { presetName: 'Meesho label', x: 0, y: 420, width: 595, height: 422 },
 };
 const key = (m) => {
   const k = String(m || '').toUpperCase();
-  if (!DEFAULTS[k]) throw new AppError('Marketplace must be FLIPKART or SNAPDEAL.', 400);
+  if (!DEFAULTS[k]) throw new AppError('Marketplace must be FLIPKART, SNAPDEAL or MEESHO.', 400);
   return k;
 };
 export async function getPreset(marketplace) {
@@ -18,7 +20,7 @@ export async function getPreset(marketplace) {
 }
 
 export const listPresets = asyncHandler(async (_req, res) => {
-  const presets = await Promise.all(['FLIPKART', 'SNAPDEAL'].map(getPreset));
+  const presets = await Promise.all(['FLIPKART', 'SNAPDEAL', 'MEESHO'].map(getPreset));
   res.json({ presets });
 });
 
@@ -32,5 +34,6 @@ export const savePreset = asyncHandler(async (req, res) => {
   };
   const data = { presetName: cleanStr(b.presetName, 80) || DEFAULTS[k].presetName, x: num(b.x, 'X', 0), y: num(b.y, 'Y', 0), width: num(b.width, 'Width', 1), height: num(b.height, 'Height', 1) };
   const preset = await LabelPreset.findOneAndUpdate({ marketplace: k }, { $set: data }, { upsert: true, new: true, runValidators: true });
+  logActivity('preset.save', `Saved a new ${k.toLowerCase()} crop area`);
   res.json({ preset });
 });

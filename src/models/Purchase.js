@@ -12,6 +12,8 @@ const schema = new mongoose.Schema(
     totalAmount: { type: Number, required: true, min: 0 },
     status: { type: String, enum: ['RECEIVED', 'PENDING'], default: 'PENDING' },
     notes: { type: String, default: '', maxlength: 1000 },
+    attachmentName: { type: String, default: '' },
+    paidAmount: { type: Number, min: 0, default: 0 },
   },
   { timestamps: true }
 );
@@ -20,6 +22,9 @@ schema.index({ supplier: 1, status: 1 });
 schema.set('toJSON', {
   transform: (_d, ret) => {
     ret.date = new Date(ret.date).toISOString().slice(0, 10);
+    ret.hasAttachment = Boolean(ret.attachmentName);
+    ret.paidAmount = ret.paidAmount ?? 0;
+    ret.dueAmount = Math.max(0, Math.round((ret.totalAmount - ret.paidAmount) * 100) / 100);
     delete ret.__v;
     return ret;
   },

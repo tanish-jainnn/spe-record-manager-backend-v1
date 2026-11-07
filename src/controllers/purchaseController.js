@@ -1,5 +1,8 @@
+import { logActivity } from '../services/activity.js';
+import Payment from '../models/Payment.js';
 import mongoose from 'mongoose';
 import Purchase from '../models/Purchase.js';
+import Attachment from '../models/Attachment.js';
 import { AppError, asyncHandler } from '../utils/AppError.js';
 import { parseDate, parseRange } from '../utils/dates.js';
 import { cleanStr, escapeRegex, toMoney } from '../utils/validate.js';
@@ -37,7 +40,9 @@ export const createPurchase = asyncHandler(async (req, res) => {
   const data = readBody(req.body || {});
   if (data.billType === 'NON_GST') { data.taxableAmount = 0; data.gstAmount = 0; }
   if (!(data.totalAmount > 0)) throw new AppError('Total amount must be greater than 0.');
-  res.status(201).json({ purchase: await Purchase.create(data) });
+  const purchase = await Purchase.create(data);
+  logActivity('purchase.create', `Added bill ${purchase.billNumber} from ${purchase.supplier} (₹${purchase.totalAmount})`);
+  res.status(201).json({ purchase });
 });
 
 export const listPurchases = asyncHandler(async (req, res) => {
@@ -58,6 +63,7 @@ export const updatePurchase = asyncHandler(async (req, res) => {
   if (data.billType === 'NON_GST') { data.taxableAmount = 0; data.gstAmount = 0; }
   const purchase = await Purchase.findByIdAndUpdate(req.params.id, { $set: data }, { new: true, runValidators: true });
   if (!purchase) throw new AppError('Purchase not found.', 404);
+  logActivity('purchase.update', `Updated bill ${purchase.billNumber} from ${purchase.supplier}${data.status ? ` (${data.status === 'RECEIVED' ? 'received' : 'pending'})` : ''}`);
   res.json({ purchase });
 });
 
@@ -65,6 +71,9 @@ export const deletePurchase = asyncHandler(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new AppError('Invalid purchase id.');
   const p = await Purchase.findByIdAndDelete(req.params.id);
   if (!p) throw new AppError('Purchase not found.', 404);
+  await Attachment.deleteOne({ purchase: p._id });
+  await Payment.deleteMany({ purchase: p._id });
+  logActivity('purchase.delete', `Deleted bill ${p.billNumber} from ${p.supplier} (₹${p.totalAmount})`);
   res.json({ message: 'Purchase deleted.' });
 });
 

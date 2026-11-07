@@ -15,6 +15,13 @@ export const env = {
   maxUploadMb: num(process.env.MAX_UPLOAD_MB, 50),
   timezone: process.env.APP_TIMEZONE || 'Asia/Kolkata',
   serveClient: process.env.SERVE_CLIENT === 'true',
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: num(process.env.SMTP_PORT, 587),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  mailFrom: process.env.MAIL_FROM || '',
+  mailTo: process.env.MAIL_TO || '',
+  cronSecret: process.env.CRON_SECRET || '',
 };
 
 export function assertEnv() {

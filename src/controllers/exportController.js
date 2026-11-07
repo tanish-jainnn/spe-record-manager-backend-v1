@@ -6,6 +6,9 @@ import { asyncHandler, AppError } from '../utils/AppError.js';
 import { parseRange, toDateStr } from '../utils/dates.js';
 import { toCsv } from '../utils/csv.js';
 import { fetchRecords, groupRecords, totalsOf } from '../services/reportService.js';
+import Payment from '../models/Payment.js';
+import CourierEntry from '../models/CourierEntry.js';
+import { courierRows } from './courierController.js';
 import { getSettingsDoc } from './settingsController.js';
 
 async function send(res, req, name, headers, rows) {
@@ -25,8 +28,12 @@ async function send(res, req, name, headers, rows) {
   res.send(Buffer.from(await wb.xlsx.writeBuffer()));
 }
 
-const dailyRow = (r) => [toDateStr(r.date), r.amazonOrders, r.flipkartOrders, r.meeshoOrders, r.snapdealOrders, r.amazonOrders + r.flipkartOrders + r.meeshoOrders + r.snapdealOrders, r.returnsReceived, r.rtoReceived];
-const DAILY_HEAD = ['Date', 'Amazon', 'Flipkart', 'Meesho', 'Snapdeal', 'Total Orders', 'Returns Received', 'RTO Received'];
+const P = ['amazon', 'flipkart', 'meesho', 'snapdeal'];
+const dailyRow = (r) => [
+  toDateStr(r.date), ...P.map((p) => r[`${p}Orders`] ?? 0), P.reduce((n, p) => n + (r[`${p}Orders`] ?? 0), 0),
+  ...P.map((p) => r[`${p}Returns`] ?? 0), r.returnsReceived ?? 0, ...P.map((p) => r[`${p}Rto`] ?? 0), r.rtoReceived ?? 0,
+];
+const DAILY_HEAD = ['Date', 'Amazon Orders', 'Flipkart Orders', 'Meesho Orders', 'Snapdeal Orders', 'Total Orders', 'Amazon Returns', 'Flipkart Returns', 'Meesho Returns', 'Snapdeal Returns', 'Total Returns', 'Amazon RTO', 'Flipkart RTO', 'Meesho RTO', 'Snapdeal RTO', 'Total RTO'];
 
 export const exportDaily = asyncHandler(async (req, res) => {
   const { from, to } = parseRange(req.query);
@@ -50,13 +57,21 @@ export const exportPurchases = asyncHandler(async (req, res) => {
   if (req.query.status) f.status = req.query.status === 'PENDING' ? 'PENDING' : 'RECEIVED';
   if (req.query.from && req.query.to) { const r = parseRange(req.query); f.date = { $gte: r.from, $lte: r.to }; }
   const list = await Purchase.find(f).sort({ date: -1 }).lean();
-  const rows = list.map((p) => [toDateStr(p.date), p.supplier, p.billNumber, p.billType === 'GST' ? 'GST' : 'Non-GST', p.taxableAmount, p.gstAmount, p.totalAmount, p.status === 'RECEIVED' ? 'Received' : 'Pending', p.notes || '']);
-  await send(res, req, 'purchases', ['Date', 'Supplier', 'Bill Number', 'Bill Type', 'Taxable Amount', 'GST Amount', 'Total Amount', 'Status', 'Notes'], rows);
+  const rows = list.map((p) => [toDateStr(p.date), p.supplier, p.billNumber, p.billType === 'GST' ? 'GST' : 'Non-GST', p.taxableAmount, p.gstAmount, p.totalAmount, p.paidAmount ?? 0, Math.max(0, p.totalAmount - (p.paidAmount ?? 0)), p.status === 'RECEIVED' ? 'Received' : 'Pending', p.notes || '']);
+  await send(res, req, 'purchases', ['Date', 'Supplier', 'Bill Number', 'Bill Type', 'Taxable Amount', 'GST Amount', 'Total Amount', 'Paid', 'Due', 'Status', 'Notes'], rows);
+});
+
+export const exportCouriers = asyncHandler(async (req, res) => {
+  const { from, to } = parseRange(req.query);
+  const rows = await courierRows(from, to);
+  const all = rows.reduce((n, r) => n + r.total, 0);
+  await send(res, req, `courier-report_${toDateStr(from)}_to_${toDateStr(to)}`, ['Courier', 'Returns', 'RTO', 'Total', 'Share %', 'Amazon', 'Flipkart', 'Meesho', 'Snapdeal', 'Other'],
+    rows.map((r) => [r.courier, r.returns, r.rto, r.total, all ? Math.round((r.total / all) * 1000) / 10 : 0, r.amazon, r.flipkart, r.meesho, r.snapdeal, r.other]));
 });
 
 /** Full JSON backup of every collection (no password data). */
 export const backup = asyncHandler(async (_req, res) => {
-  const [daily, purchases, presets, settings] = await Promise.all([DailyBusiness.find().sort({ date: 1 }), Purchase.find().sort({ date: 1 }), LabelPreset.find(), getSettingsDoc()]);
+  const [daily, purchases, presets, settings, payments, couriers] = await Promise.all([DailyBusiness.find().sort({ date: 1 }), Purchase.find().sort({ date: 1 }), LabelPreset.find(), getSettingsDoc(), Payment.find(), CourierEntry.find().sort({ date: 1 })]);
   res.set({ 'Content-Type': 'application/json', 'Content-Disposition': `attachment; filename="spe-backup-${new Date().toISOString().slice(0, 10)}.json"` });
-  res.send(JSON.stringify({ exportedAt: new Date().toISOString(), daily, purchases, presets, settings }, null, 2));
+  res.send(JSON.stringify({ exportedAt: new Date().toISOString(), daily, purchases, presets, settings, payments, couriers }, null, 2));
 });

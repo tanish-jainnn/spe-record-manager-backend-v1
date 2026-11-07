@@ -9,7 +9,7 @@ export function errorHandler(err, _req, res, _next) {
 
   if (err.name === 'MulterError') {
     status = 400;
-    message = err.code === 'LIMIT_FILE_SIZE' ? `File is too large (max ${env.maxUploadMb} MB).` : `Upload problem: ${err.message}`;
+    message = err.code === 'LIMIT_FILE_SIZE' ? `File is too large (PDFs up to ${env.maxUploadMb} MB; bill attachments and spreadsheets up to 5 MB).` : `Upload problem: ${err.message}`;
   } else if (err.name === 'ValidationError') {
     status = 400;
     message = Object.values(err.errors).map((e) => e.message).join(' ');
