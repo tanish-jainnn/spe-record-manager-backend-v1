@@ -33,6 +33,10 @@ export const saveSettings = asyncHandler(async (req, res) => {
     if (b.profitPerOrder?.[p] !== undefined) data[`profitPerOrder.${p}`] = num(b.profitPerOrder[p], `${p} profit per order`, -100000, 100000);
     if (b.lossPerReturn?.[p] !== undefined) data[`lossPerReturn.${p}`] = num(b.lossPerReturn[p], `${p} loss per return`, 0, 100000);
   }
+  if (b.weeklyOff !== undefined) {
+    if (!Array.isArray(b.weeklyOff)) throw new AppError('Weekly off must be a list of days.');
+    data.weeklyOff = [...new Set(b.weeklyOff.map(Number))].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).sort();
+  }
   if (b.summaryEmailEnabled !== undefined) data.summaryEmailEnabled = Boolean(b.summaryEmailEnabled);
   if (b.summaryEmail !== undefined) {
     data.summaryEmail = cleanStr(b.summaryEmail, 160);

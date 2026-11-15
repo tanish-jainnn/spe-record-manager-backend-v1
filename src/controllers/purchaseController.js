@@ -33,6 +33,17 @@ function readBody(b, partial = false) {
   if (has('gstAmount')) out.gstAmount = toMoney(b.gstAmount, 'GST amount');
   if (has('totalAmount') || !partial) out.totalAmount = toMoney(b.totalAmount, 'Total amount', { required: !partial });
   if (has('notes')) out.notes = cleanStr(b.notes, 1000);
+  if (has('supplierGstin')) {
+    const g = cleanStr(b.supplierGstin, 20).toUpperCase().replace(/\s/g, '');
+    if (g && !/^\d{2}[A-Z0-9]{13}$/.test(g)) throw new AppError('Supplier GSTIN must be 15 characters, like 07ABCDE1234F1Z5.');
+    out.supplierGstin = g;
+  }
+  if (has('inGstr2b')) out.inGstr2b = Boolean(b.inGstr2b);
+  if (has('itcMonth')) {
+    if (b.itcMonth && !/^\d{4}-(0[1-9]|1[0-2])$/.test(b.itcMonth)) throw new AppError('Claim month must look like 2026-10.');
+    out.itcMonth = b.itcMonth || '';
+  }
+  for (const k of ['igstAmount', 'cgstAmount', 'sgstAmount']) if (has(k)) out[k] = b[k] === null || b[k] === '' ? null : toMoney(b[k], k);
   return out;
 }
 

@@ -27,6 +27,14 @@ export function requirePdfs(req, _res, next) {
   next();
 }
 
+// ---- GST report inputs (.xlsx / .csv / .zip from the platforms) ----
+const gstFiles = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024, files: 12 },
+  fileFilter: (_req, file, cb) => cb(/\.(xlsx|csv|zip)$/i.test(file.originalname || '') ? null : new AppError('Upload the platform reports as .xlsx, .csv or .zip files.'), true),
+});
+export const uploadGst = gstFiles.array('files', 12);
+
 // ---- Bill attachments (photo or PDF, up to 5 MB) ----
 const bill = multer({
   storage: multer.memoryStorage(),

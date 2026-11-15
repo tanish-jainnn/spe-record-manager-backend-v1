@@ -14,6 +14,12 @@ const schema = new mongoose.Schema(
     notes: { type: String, default: '', maxlength: 1000 },
     attachmentName: { type: String, default: '' },
     paidAmount: { type: Number, min: 0, default: 0 },
+    supplierGstin: { type: String, default: '', trim: true, uppercase: true, maxlength: 15 },
+    igstAmount: { type: Number, default: null }, // optional manual split; when empty it is worked out from the supplier GSTIN state
+    cgstAmount: { type: Number, default: null },
+    sgstAmount: { type: Number, default: null },
+    inGstr2b: { type: Boolean, default: false }, // bill is visible in GSTR-2B / IMS
+    itcMonth: { type: String, default: '' }, // 'YYYY-MM' = month in which the credit is claimed; '' = not claimed
   },
   { timestamps: true }
 );

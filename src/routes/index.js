@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../middleware/auth.js';
-import { uploadOne, uploadMany, requirePdfs, uploadBill, requireBillFile, uploadSheet } from '../middleware/upload.js';
+import { uploadOne, uploadMany, requirePdfs, uploadBill, requireBillFile, uploadSheet, uploadGst } from '../middleware/upload.js';
 import * as auth from '../controllers/authController.js';
 import * as daily from '../controllers/dailyController.js';
 import * as dash from '../controllers/dashboardController.js';
@@ -19,6 +19,9 @@ import * as courier from '../controllers/courierController.js';
 import * as searchC from '../controllers/searchController.js';
 import * as activity from '../controllers/activityController.js';
 import * as summary from '../controllers/summaryController.js';
+import * as gst from '../controllers/gstController.js';
+import * as labelMaker from '../controllers/labelController.js';
+import * as cal from '../controllers/calendarController.js';
 
 const r = Router();
 
@@ -64,6 +67,17 @@ r.get('/couriers/names', courier.names);
 r.get('/search', searchC.search);
 r.get('/activity', activity.listActivity);
 r.post('/summary/send', summary.sendNow);
+
+r.get('/calendar', cal.getCalendar);
+r.get('/holidays', cal.listHolidays);
+r.post('/holidays', cal.addHoliday);
+r.delete('/holidays/:id', cal.deleteHoliday);
+r.get('/labels/defaults', labelMaker.labelDefaults);
+r.post('/labels/make', labelMaker.make);
+r.get('/gst/settings', gst.getGstSettings);
+r.put('/gst/settings', gst.saveGstSettings);
+r.get('/gst/itc', gst.listItc);
+r.post('/gst/report', uploadGst, gst.generate);
 
 r.get('/label-presets', presets.listPresets);
 r.put('/label-presets/:marketplace', presets.savePreset);

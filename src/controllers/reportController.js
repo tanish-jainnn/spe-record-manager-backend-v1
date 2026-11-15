@@ -1,5 +1,7 @@
 import Purchase from '../models/Purchase.js';
 import Payment from '../models/Payment.js';
+import { monthCalendar } from '../services/calendar.js';
+import { todayStr } from '../utils/dates.js';
 import { asyncHandler, AppError } from '../utils/AppError.js';
 import { monthRange, parseRange, toDateStr } from '../utils/dates.js';
 import { fetchRecords, groupRecords, totalsOf } from '../services/reportService.js';
@@ -39,13 +41,14 @@ export const monthSummary = asyncHandler(async (req, res) => {
     const o = r.amazonOrders + r.flipkartOrders + r.meeshoOrders + r.snapdealOrders;
     if (!best || o > best.orders) best = { date: toDateStr(r.date), orders: o };
   }
+  const cal = await monthCalendar(month, todayStr());
   const [row] = await sumBills(from, to);
   const paidRows = await Payment.aggregate([{ $match: { date: { $gte: from, $lte: to } } }, { $group: { _id: '$method', amount: { $sum: '$amount' } } }]);
   const paymentsByMethod = Object.fromEntries(paidRows.map((r) => [r._id, Math.round(r.amount * 100) / 100]));
   const [earlier] = await Purchase.aggregate([{ $match: { status: 'PENDING', date: { $lt: from } } }, { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: '$totalAmount' } } }]);
   const zero = { bills: 0, amount: 0, gstBills: 0, gstBillAmount: 0, gstTax: 0, nonGstBills: 0, nonGstAmount: 0, receivedBills: 0, pendingBills: 0, pendingAmount: 0 };
   res.json({
-    paymentsByMethod, month, totals, bestDay: best, averagePerDay: totals.days ? Math.round((totals.totalOrders / totals.days) * 10) / 10 : 0,
+    paymentsByMethod, month, days: cal.summary, totals, bestDay: best, averagePerDay: totals.days ? Math.round((totals.totalOrders / totals.days) * 10) / 10 : 0,
     purchases: { ...zero, ...(row || {}), _id: undefined }, earlierPending: { count: earlier?.count || 0, amount: earlier?.amount || 0 },
   });
 });
